@@ -12,6 +12,8 @@
 #include <string>
 #include <deque>
 #include <vector>
+#include <utility>
+#include <limits>
 #include <getopt.h>
 #include <assert.h>
 #include "NWalign.h"
@@ -205,14 +207,25 @@ void calculateMap() {
     // the first row
     myMap[0].resize(S1.size()+1);
     myMap[0][0].myScore = 0;
+    myMap[0][0].wScore = 0;
+    myMap[0][0].nScore = 0;
     myMap[0][0].source = 'x';
+    myMap[0][0].wOrigin = make_pair(0, 0);
+    myMap[0][0].nOrigin = make_pair(0, 0);
+    
     myMap[0][1].myScore = GO;
+    myMap[0][1].wScore = GO;
+    myMap[0][1].nScore = numeric_limits<int>::min()-GO;
     myMap[0][1].source = 'w';
-    myMap[0][1].onGap = true;
+    myMap[0][1].wOrigin = make_pair(0, 1);
+    myMap[0][1].nOrigin = make_pair(0, 1);
     for (int i = 2; i < int(S1.size()+1); ++i) {
-        myMap[0][i].myScore = myMap[0][i-1].myScore + GX;
+        myMap[0][i].wScore = myMap[0][i-1].myScore + GX;
+        myMap[0][i].nScore = numeric_limits<int>::min()-GO;
         myMap[0][i].source = 'w';
-        myMap[0][i].onGap = true;
+        myMap[0][i].wOrigin = make_pair(0, 1);
+        myMap[0][i].nOrigin = make_pair(0, i);
+        myMap[0][i].myScore = myMap[0][i].wScore;
     }
 
     // the rest rows
@@ -220,12 +233,15 @@ void calculateMap() {
         myMap[i].resize(S1.size()+1);
         // the first col
         if (i == 1) {
-            myMap[i][0].myScore = myMap[i-1][0].myScore + GO;
+            myMap[i][0].nScore = myMap[i-1][0].myScore + GO;
         } else {
-            myMap[i][0].myScore = myMap[i-1][0].myScore + GX;
+            myMap[i][0].nScore = myMap[i-1][0].myScore + GX;
         }
         myMap[i][0].source = 'n';
-        myMap[i][0].onGap = true;
+        myMap[i][0].wOrigin = make_pair(i, 0);
+        myMap[i][0].nOrigin = make_pair(1, 0);
+        myMap[i][0].wScore = numeric_limits<int>::min()-GO;
+        myMap[i][0].myScore = myMap[i][0].nScore;
         
         
         // everything else
@@ -246,29 +262,33 @@ void calculateMap() {
 void compareGrid(int i, int j) {
     assert(i > 0);
     assert(j > 0);
+
+    // calculate wScore
+    if (myMap[i][j-1].wScore + GX > myMap[i][j-1].myScore + GO) {
+        myMap[i][j].wScore = myMap[i][j-1].wScore + GX;
+        myMap[i][j].wOrigin = myMap[i][j-1].wOrigin;
+    } else {
+        myMap[i][j].wScore = myMap[i][j-1].myScore + GO;
+        myMap[i][j].wOrigin = make_pair(i, j);
+    }
+    
+    // calculate nScore
+    if (myMap[i-1][j].nScore + GX > myMap[i-1][j].myScore + GO) {
+        myMap[i][j].nScore = myMap[i-1][j].nScore + GX;
+        myMap[i][j].nOrigin = myMap[i-1][j].nOrigin;
+    } else {
+        myMap[i][j].nScore = myMap[i-1][j].myScore + GO;
+        myMap[i][j].nOrigin = make_pair(i, j);
+    }
     
     // west
-    int west = myMap[i][j-1].myScore;
-    if (myMap[i][j-1].onGap && myMap[i][j-1].source == 'w') {
-        west += GX;
-    } else {
-        west += GO;
-    }
-    myMap[i][j].myScore = west;
+    myMap[i][j].myScore = myMap[i][j].wScore;
     myMap[i][j].source = 'w';
-    myMap[i][j].onGap = true;
     
     // north
-    int north = myMap[i-1][j].myScore;
-    if (myMap[i-1][j].onGap && myMap[i-1][j].source == 'n') {
-        north += GX;
-    } else {
-        north += GO;
-    }
-    if (north > myMap[i][j].myScore) {
-        myMap[i][j].myScore = north;
+    if (myMap[i][j].nScore > myMap[i][j].myScore) {
+        myMap[i][j].myScore = myMap[i][j].nScore;
         myMap[i][j].source = 'n';
-        myMap[i][j].onGap = true;
     }
     
     // diagonal
@@ -284,9 +304,7 @@ void compareGrid(int i, int j) {
     if (diagonal > myMap[i][j].myScore) {
         myMap[i][j].myScore = diagonal;
         myMap[i][j].source = 'd';
-        myMap[i][j].onGap = false;
     }
-    
     return;
 }
 
@@ -320,6 +338,7 @@ void printMap() {
         cout << endl;
     }
     cout << "############## END OF PRINTING ##############" << endl << endl;
+    return;
 }
 
 
@@ -340,15 +359,29 @@ void backTrace(deque<char> &seq1, deque<char> &seq2) {
             --i;
             --j;
         } else if (myMap[i][j].source == 'w') {
+            pair<int, int> temp = myMap[i][j].wOrigin;
+            while (i != temp.first || j != temp.second) {
+                seq1.push_front(S1[j-1]);
+                seq2.push_front('-');
+                --j;
+            }
             seq1.push_front(S1[j-1]);
             seq2.push_front('-');
             --j;
+            
         } else if (myMap[i][j].source == 'n') {
+            pair<int, int> temp = myMap[i][j].wOrigin;
+            while (i != temp.first || j != temp.second) {
+                seq1.push_front('-');
+                seq2.push_front(S2[i-1]);
+                --i;
+            }
             seq1.push_front('-');
             seq2.push_front(S2[i-1]);
             --i;
         }
     }
+
     
     if (!quiet) {
         cout << "############## ALIGNMENT SUMMARY ##############" << endl;

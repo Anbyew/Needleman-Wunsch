@@ -18,9 +18,12 @@ using namespace std;
 
 
 struct grid {
-    int myScore = 0;
     char source = 'd';
-    bool onGap = false;
+    int myScore = 0;
+    int wScore = 0;
+    int nScore = 0;
+    pair<int, int> wOrigin = make_pair(0, 0);
+    pair<int, int> nOrigin = make_pair(0, 0);
 };
 
 
