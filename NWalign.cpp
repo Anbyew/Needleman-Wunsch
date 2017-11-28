@@ -370,7 +370,7 @@ void backTrace(deque<char> &seq1, deque<char> &seq2) {
             --j;
             
         } else if (myMap[i][j].source == 'n') {
-            pair<int, int> temp = myMap[i][j].wOrigin;
+            pair<int, int> temp = myMap[i][j].nOrigin;
             while (i != temp.first || j != temp.second) {
                 seq1.push_front('-');
                 seq2.push_front(S2[i-1]);
